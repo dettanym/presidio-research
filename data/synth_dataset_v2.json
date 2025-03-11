@@ -17,14 +17,16 @@
             }
         ],
         "template_id": 87,
-        "metadata": null
+        "metadata": null,
+        "object_key": "randomword1"
     },
     {
         "full_text": "What are my options?",
         "masked": "What are my options?",
         "spans": [],
         "template_id": 41,
-        "metadata": null
+        "metadata": null,
+        "object_key": "randomword2"
     },
     {
         "full_text": "Krisztián Szöllösy listed his top 20 songs for Entertainment Weekly and had the balls to list this song at #15. (What did he put at #1 you ask? Answer:\"Tube Snake Boogie\" by Szabina J Gelencsér ג€“ go figure)",
