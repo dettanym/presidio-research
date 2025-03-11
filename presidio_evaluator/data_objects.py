@@ -118,6 +118,7 @@ class InputSample(object):
         metadata: Dict = None,
         sample_id: int = None,
         template_id: int = None,
+        object_key: Optional[str] = None,
     ):
         """
         Hold all the information needed for evaluation in the
@@ -136,6 +137,7 @@ class InputSample(object):
         in the English (or other language) vocabulary
         :param template_id: Original template (utterance) of sample, in case it was generated  # noqa
         :param sample_id: Unique identifier for this sample (within a dataset)
+        :param object_key: Optional context, set to the key when the sample text is a value in a dictionary at the given key
         """
         if tags is None:
             tags = []
@@ -146,6 +148,7 @@ class InputSample(object):
         self.spans = spans if spans else []
         self.metadata = metadata
         self.sample_id = sample_id
+        self.object_key = object_key
 
         # generated samples have a template from which they were generated
         if not template_id and self.metadata:

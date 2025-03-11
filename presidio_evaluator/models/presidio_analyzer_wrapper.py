@@ -3,7 +3,6 @@ from typing import List, Optional, Dict
 from presidio_analyzer import (
     AnalyzerEngine,
     EntityRecognizer,
-    BatchAnalyzerEngine,
     RecognizerResult,
 )
 
@@ -73,13 +72,14 @@ class PresidioAnalyzerWrapper(BaseModel):
 
     def batch_predict(self, dataset: List[InputSample], **kwargs) -> List[List[str]]:
         self.__update_kwargs(kwargs)
-        texts = [sample.full_text for sample in dataset]
-        batch_analyzer = BatchAnalyzerEngine(analyzer_engine=self.analyzer_engine)
-        analyzer_results = batch_analyzer.analyze_iterator(texts=texts, **kwargs)
-
         predictions = []
-        for prediction, sample in zip(analyzer_results, dataset):
-            predictions.append(self.__recognizer_results_to_tags(prediction, sample))
+
+        for sample in dataset:
+            if sample.object_key is not None:
+                kwargs['context'] = [sample.object_key]
+            result = self.analyzer_engine.analyze(text=sample.full_text, **kwargs)
+            response_tags = self.__recognizer_results_to_tags(result, sample)
+            predictions.append(response_tags)
 
         return predictions
 
