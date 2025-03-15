@@ -4,7 +4,7 @@ from typing import Optional, List
 
 import pandas as pd
 import plotly.express as px
-from plotly.graph_objs import Figure
+from plotly.graph_objs import Figure, Scatter
 
 from presidio_evaluator.evaluation import Evaluator, EvaluationResult, ModelError
 
@@ -36,6 +36,7 @@ class Plotter:
         self.save_as = save_as
         self.model_name = model_name.replace("/", "-")
         self.beta = beta
+        self.scores = self.set_scores()
 
         if not output_folder:
             self.output_folder = Path("plots")
@@ -50,32 +51,8 @@ class Plotter:
         Plots per-entity recall, precision, or F2 score for evaluated model.
 
         """
-        scores = {}
-
-        entity_recall_dict = copy.deepcopy(self.results.entity_recall_dict)
-        entity_precision_dict = copy.deepcopy(self.results.entity_precision_dict)
-
-        scores["entity"] = list(entity_recall_dict.keys())
-        scores["recall"] = list(entity_recall_dict.values())
-        scores["precision"] = list(entity_precision_dict.values())
-        scores["count"] = list(self.results.n_dict.values())
-
-        scores[f"f{self.beta}_score"] = [
-            Evaluator.f_beta(precision=precision, recall=recall, beta=self.beta)
-            for recall, precision in zip(scores["recall"], scores["precision"])
-        ]
-
-        # Add PII detection rates
+        df = pd.DataFrame(self.scores)
         f_beta_score = f"f{self.beta}_score"
-
-        scores["entity"].append("PII")
-        scores["recall"].append(self.results.pii_recall)
-        scores["precision"].append(self.results.pii_precision)
-        scores["count"].append(self.results.n)
-        scores[f_beta_score].append(self.results.pii_f)
-
-        df = pd.DataFrame(scores)
-        df["model"] = self.model_name
 
         beta_fig = self._plot_one_metric(df, metric=f_beta_score)
         recall_fig = self._plot_one_metric(df, metric="recall")
@@ -90,6 +67,58 @@ class Plotter:
                 fig.show(self.save_as)
             else:
                 fig.show()
+
+    def set_scores(self):
+        scores = {}
+
+        entity_recall_dict = copy.deepcopy(self.results.entity_recall_dict)
+        entity_precision_dict = copy.deepcopy(self.results.entity_precision_dict)
+
+        scores["model"] = self.model_name
+        scores["entity"] = list(entity_recall_dict.keys())
+        scores["recall"] = list(entity_recall_dict.values())
+        scores["precision"] = list(entity_precision_dict.values())
+        scores["fpr"] = [1 - precision for precision in entity_precision_dict.values()]
+        scores["count"] = list(self.results.n_dict.values())
+
+        scores[f"f{self.beta}_score"] = [
+            Evaluator.f_beta(precision=precision, recall=recall, beta=self.beta)
+            for recall, precision in zip(scores["recall"], scores["precision"])
+        ]
+
+        # Add PII detection rates
+        f_beta_score = f"f{self.beta}_score"
+
+        scores["entity"].append("PII")
+        scores["recall"].append(self.results.pii_recall)
+        scores["precision"].append(self.results.pii_precision)
+        scores["fpr"].append(1 - self.results.pii_precision)
+        scores["count"].append(self.results.n)
+        scores[f_beta_score].append(self.results.pii_f)
+
+        return scores
+
+    def get_scores(self):
+        return self.scores
+
+    def plot_roc(self) -> Figure:
+        # y-axis is recall and x-axis is 1 - precision
+        # for each PII type, we get a point (1-precision, recall)
+
+
+        df = pd.DataFrame(self.scores)
+        df = df[df["count"] != 0]         # TODO: what does count mean? num of annotations (ground truth) or predictions (observed occurrences)
+        df = df[df["entity"] == "PII"]
+        df = df.sort_values(by=["recall", "fpr"], ascending=[False, True])
+        with pd.option_context('display.max_rows', None, 'display.max_columns',
+                               None):  # more options can be specified also
+            print(df)
+
+        fig = px.scatter(data_frame=df, x="fpr", y="recall", title="ROC", color="entity", color_discrete_sequence=px.colors.qualitative.Light24)
+        fig.update_layout(yaxis_title="True Positive Rate", xaxis_title="False Positive Rate",
+                          yaxis_range=[-0.05, 1.05], xaxis_range=[-0.05, 1.05]
+                          )
+        return fig
 
     def _plot_one_metric(self, df: pd.DataFrame, metric: str) -> Figure:
         fig = px.bar(
@@ -132,12 +161,12 @@ class Plotter:
         fig.update_layout(
             plot_bgcolor="#FFF",
             xaxis=dict(
-                title="PII entity",
+                title=f"{metric}",
                 linecolor="#BCCCDC",  # Sets color of X-axis line
                 showgrid=False,  # Removes X-axis grid lines
             ),
             yaxis=dict(
-                title=f"{metric}",
+                title="PII Type",
                 linecolor="#BCCCDC",  # Sets color of X-axis line
                 showgrid=False,  # Removes X-axis grid lines
             ),
