@@ -62,6 +62,22 @@ pytest
 
 Note that some dependencies (such as Flair and Stanza) are not automatically installed to reduce installation complexity.
 
+#### with nix
+
+```shell
+nix shell nixpkgs#python39 github:GuillaumeDesforges/fix-python
+python -m venv --copies .venv
+. .venv/bin/activate
+
+pip install poetry
+
+poetry install --with=dev
+fix-python --venv .venv
+
+exit # Exits nix shell
+. .venv/bin/activate
+```
+
 ## What's in this package?
 
 1. **Fake data generator** for PII recognizers and NER models
