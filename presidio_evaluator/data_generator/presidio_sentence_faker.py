@@ -1,7 +1,7 @@
 import json
 import random
 from pathlib import Path
-from typing import List, Optional, Tuple, Union, Dict
+from typing import List, Optional, Tuple, Union, Dict, Literal
 import re
 
 import numpy as np
@@ -159,16 +159,20 @@ class PresidioSentenceFaker:
                 provider_name=provider, new_name=alias
             )
         self.fake_sentence_results = None
+        self._raw_unique_pii_types_per_result = None
 
     def generate_new_fake_sentences(self, num_samples: int) -> List[InputSample]:
         """Generate fake sentences based on the templates, input data and entity providers."""
         self.fake_sentence_results = []
+        self._raw_unique_pii_types_per_result = []
         # Map faker generated entity types to Presidio entity types
         for _ in tqdm(range(num_samples), desc="Sampling"):
             template_id = random.choice(range(len(self._sentence_templates)))
             template = self._sentence_templates[template_id]
             template = self._preprocess_template(template)
             fake_sentence_result = self._sentence_faker.parse(template, template_id)
+            self._raw_unique_pii_types_per_result.append(list(set([span.entity_type for span in fake_sentence_result.spans])))
+
             for span in fake_sentence_result.spans:
                 if span.entity_type in self._entity_type_mapping.keys():
                     # Use the mapped entity type if exists
@@ -190,6 +194,31 @@ class PresidioSentenceFaker:
                 )
             self.fake_sentence_results.append(fake_sentence_result)
         return self.fake_sentence_results
+
+    def expand_generated_sentences_with_keys(self, object_key_type: Literal["from-mask", "random"] = "random"):
+        adjusted_data = []
+        for (data, entity_types) in tqdm(zip(self.fake_sentence_results, self._raw_unique_pii_types_per_result), desc="expanding with keys"):
+            if isinstance(data, str):
+                adjusted_data.append(data)
+                continue
+
+            if not isinstance(data, InputSample):
+                raise TypeError()
+
+            copy = InputSample.from_json(data.to_dict())
+
+            if object_key_type == "random":
+                copy.object_key = self._sentence_faker.word()
+            elif object_key_type == "from-mask":
+                if len(copy.spans) == 0:
+                    copy.object_key = "private"
+                else:
+                    random_span_index = random.choice(range(len(entity_types)))
+                    copy.object_key = entity_types[random_span_index]
+
+            adjusted_data.append(copy)
+
+        return adjusted_data
 
     @staticmethod
     def seed(seed_value=42) -> None:
@@ -237,16 +266,21 @@ class PresidioSentenceFaker:
 
         return template
 
-
 if __name__ == "__main__":
-    sentence_faker = PresidioSentenceFaker(
-        locale="en_US", lower_case_ratio=0.05, random_seed=42
-    )
-    fake_sentence_results = sentence_faker.generate_new_fake_sentences(
-        num_samples=10000
-    )
-    repo_root = Path(__file__).parent.parent.parent
-    output_file = repo_root / "data/presidio_data_generator_data.json"
-    to_json = [result.to_dict() for result in fake_sentence_results]
-    with open("{}".format(output_file), "w+", encoding="utf-8") as f:
-        json.dump(to_json, f, ensure_ascii=False, indent=2)
+    sentence_faker = PresidioSentenceFaker(locale="en_US", lower_case_ratio=0.05, random_seed=42)
+    fake_sentence_results = sentence_faker.generate_new_fake_sentences(num_samples=2000)
+    random_keys = sentence_faker.expand_generated_sentences_with_keys('random')
+    masked_keys = sentence_faker.expand_generated_sentences_with_keys('from-mask')
+
+    data_dir = Path(__file__).parent.parent.parent / "data"
+    save = [
+        ("presidio_data_generator.json", fake_sentence_results),
+        ("presidio_data_generator_random_keys.json", random_keys),
+        ("presidio_data_generator_masked_keys.json", masked_keys),
+    ]
+
+    for (file, data) in save:
+        output_file = data_dir / file
+        with open("{}".format(output_file), 'w+', encoding="utf-8") as f:
+            jsons_data = [x.to_dict() for x in data]
+            json.dump(jsons_data, f, ensure_ascii=False, indent=2)
