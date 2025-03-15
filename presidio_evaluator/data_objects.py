@@ -174,6 +174,7 @@ class InputSample(object):
             "spans": [span.__dict__ for span in self.spans],
             "template_id": self.template_id,
             "metadata": self.metadata,
+            "object_key": self.object_key,
         }
 
     @classmethod
