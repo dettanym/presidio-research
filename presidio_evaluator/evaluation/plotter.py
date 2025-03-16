@@ -111,25 +111,6 @@ class Plotter:
     def get_scores(self):
         return self.scores
 
-    def plot_roc(self) -> Figure:
-        # y-axis is recall and x-axis is 1 - precision
-        # for each PII type, we get a point (1-precision, recall)
-
-
-        df = pd.DataFrame(self.scores)
-        df = df[df["count"] != 0]         # TODO: what does count mean? num of annotations (ground truth) or predictions (observed occurrences)
-        df = df[df["entity"] == "PII"]
-        df = df.sort_values(by=["recall", "fpr"], ascending=[False, True])
-        with pd.option_context('display.max_rows', None, 'display.max_columns',
-                               None):  # more options can be specified also
-            print(df)
-
-        fig = px.scatter(data_frame=df, x="fpr", y="recall", title="ROC", color="entity", color_discrete_sequence=px.colors.qualitative.Light24)
-        fig.update_layout(yaxis_title="True Positive Rate", xaxis_title="False Positive Rate",
-                          yaxis_range=[-0.05, 1.05], xaxis_range=[-0.05, 1.05]
-                          )
-        return fig
-
     def _plot_one_metric(self, df: pd.DataFrame, metric: str) -> Figure:
         fig = px.bar(
             df,
@@ -187,6 +168,9 @@ class Plotter:
         """Graph most common false positive and false negative tokens for each entity."""
         fps_frames = []
         fns_frames = []
+
+        ModelError.most_common_fp_tokens(self.results.model_errors)
+        ModelError.most_common_fn_tokens(self.results.model_errors)
 
         entities = list(self.results.n_dict.keys())
         for entity in entities:
@@ -300,9 +284,10 @@ class Plotter:
 
         return fg
 
-    def plot_confusion_matrix(
-        self, entities: List[str], confmatrix: List[List[int]]
-    ) -> None:
+    @staticmethod
+    def plot_confusion_matrix(entities: List[str],
+                              confmatrix: List[List[int]], suffix: str=""
+                            ) -> None:
         # Create a DataFrame from the 2D list
         confusion_matrix_df = pd.DataFrame(confmatrix, index=entities, columns=entities)
 
@@ -318,20 +303,17 @@ class Plotter:
             x=confusion_matrix_df.columns,
             y=confusion_matrix_df.index,
             color_continuous_scale="Blues",
-            title=f"Confusion Matrix for model {self.model_name}",
+            title=f"Confusion Matrix for Presidio Analyzer",
             text_auto=True,
         )
         fig.update_xaxes(tickangle=90, side="top", title_standoff=10)
         fig.update_traces(textfont=dict(size=10))
         fig.update_layout(width=800, height=800)
 
-        if self.save_as:
-            fig.show(self.save_as)
-            fig.write_image(
-                Path(
-                    self.output_folder,
-                    f"{self.model_name}-confusion-matrix.{self.save_as}",
-                )
+        fig.write_image(
+            Path(
+                'plots',
+                f"Presidio-Analyzer-confusion-matrix-{suffix}.png",
             )
-        else:
-            fig.show()
+        )
+        fig.show()
