@@ -1,3 +1,4 @@
+import copy
 from collections import Counter
 from typing import List, Optional, Dict, Union
 
@@ -336,6 +337,13 @@ class Evaluator:
         entity_recall = {}
         entity_precision = {}
         n = {}
+        entity_fpr = {}
+
+        entity_true_pos = {}
+        entity_true_neg = {}
+        entity_false_neg = {}
+        entity_false_pos = {}
+
         if not entities:
             entities1 = list(set([x[0] for x in all_results.keys() if x[0] != "O"]))
             entities2 = list(set([x[1] for x in all_results.keys() if x[1] != "O"]))
@@ -348,48 +356,77 @@ class Evaluator:
             n[entity] = annotated
             tp = all_results[(entity, entity)]
 
+            entity_true_pos[entity] = tp
+            entity_true_neg[entity] = sum([
+                all_results[x]
+                for x
+                in all_results
+                if x[0] != entity and x[1] != entity # and x[0] != "O" and x[1] != "O"
+            ])
+            entity_false_neg[entity] = annotated - tp
+            entity_false_pos[entity] = predicted - tp
+
+            # make sure we computed these values correctly
+            assert entity_false_pos[entity] == sum([all_results[x] for x in all_results if x[0] != entity and x[1] == entity])
+            assert entity_false_neg[entity] == sum([all_results[x] for x in all_results if x[0] == entity and x[1] != entity])
+
             if annotated > 0:
                 entity_recall[entity] = tp / annotated
             else:
                 entity_recall[entity] = np.nan
 
             if predicted > 0:
-                per_entity_tp = all_results[(entity, entity)]
-                entity_precision[entity] = per_entity_tp / predicted
+                entity_precision[entity] = tp / predicted
             else:
                 entity_precision[entity] = np.nan
+
+            entity_fpr[entity] = entity_false_pos[entity] / (entity_false_pos[entity] + entity_true_neg[entity])
+
+        annotated_non_pii = sum([all_results[x] for x in all_results if x[0] == "O"])
 
         # compute pii_precision and pii_recall
         annotated_all = sum([all_results[x] for x in all_results if x[0] != "O"])
         predicted_all = sum([all_results[x] for x in all_results if x[1] != "O"])
+
+        true_pos_all = sum([all_results[x] for x in all_results if x[0] != "O" and x[1] != "O"])
+        true_neg_all = all_results[("O", "O")] # same as `sum([all_results[x] for x in all_results if x[0] == "O" and x[1] == "O"])`
+        false_neg_all = annotated_all - true_pos_all
+        false_pos_all = predicted_all - true_pos_all
+
         if annotated_all > 0:
-            pii_recall = (
-                sum(
-                    [
-                        all_results[x]
-                        for x in all_results
-                        if (x[0] != "O" and x[1] != "O")
-                    ]
-                )
-                / annotated_all
-            )
+            pii_recall = true_pos_all / annotated_all
         else:
             pii_recall = np.nan
         if predicted_all > 0:
-            pii_precision = (
-                sum(
-                    [
-                        all_results[x]
-                        for x in all_results
-                        if (x[0] != "O" and x[1] != "O")
-                    ]
-                )
-                / predicted_all
-            )
+            pii_precision = true_pos_all / predicted_all
         else:
             pii_precision = np.nan
+
+        fpr_all = false_pos_all / (false_pos_all + true_neg_all)
+
         # compute pii_f_beta-score
         pii_f_beta = self.f_beta(pii_precision, pii_recall, beta)
+
+        for entity in entities:
+            assertion = (
+                    sum(n.values())
+                    + annotated_non_pii
+                    ==
+                    entity_true_pos[entity]
+                    + entity_true_neg[entity]
+                    + entity_false_pos[entity]
+                    + entity_false_neg[entity]
+            )
+            if not assertion:
+                print(entity, {
+                    "n_total": sum(n.values()),
+                    "annotated_non_pii": annotated_non_pii,
+                    "entity_true_pos": entity_true_pos[entity],
+                    "entity_true_neg": entity_true_neg[entity],
+                    "entity_false_pos": entity_false_pos[entity],
+                    "entity_false_neg": entity_false_neg[entity],
+                })
+                raise ValueError(f"total invariant does not hold for {entity} entity type")
 
         # aggregate errors
         errors = []
@@ -402,8 +439,10 @@ class Evaluator:
             model_errors=errors,
             pii_precision=pii_precision,
             pii_recall=pii_recall,
+            pii_fpr=fpr_all,
             entity_recall_dict=entity_recall,
             entity_precision_dict=entity_precision,
+            entity_fpr_dict=entity_fpr,
             n_dict=n,
             pii_f=pii_f_beta,
             n=sum(n.values()),
