@@ -65,17 +65,21 @@ Note that some dependencies (such as Flair and Stanza) are not automatically ins
 #### with nix
 
 ```shell
-nix shell nixpkgs#python39 github:GuillaumeDesforges/fix-python
-python -m venv --copies .venv
-. .venv/bin/activate
+nix run nixpkgs#python39 -- -m venv --copies .venv
 
+. .venv/bin/activate
 pip install poetry
 
 poetry install --with=dev
-fix-python --venv .venv
+nix run github:GuillaumeDesforges/fix-python -- --venv .venv
 
-exit # Exits nix shell
-. .venv/bin/activate
+# Download tge spaCy pipeline used for tokenization
+poetry run python -m spacy download en_core_web_sm
+# To use the default Presidio configuration, a spaCy model is required:
+poetry run python -m spacy download en_core_web_lg
+
+# Verify installation
+pytest
 ```
 
 ## What's in this package?
