@@ -47,9 +47,9 @@ class PlotterForMultipleEvaluations:
 
         self.plot_roc(df, self.dataset_name)
 
-        for threshold in self.plotter_per_threshold.keys():
-            if threshold == 0.4 or threshold == 0.85:
-                self.conf_matrix_error_analysis(threshold)
+        # for threshold in self.plotter_per_threshold.keys():
+        #     if threshold == 0.4 or threshold == 0.85:
+        #         self.conf_matrix_error_analysis(threshold)
 
 
     def conf_matrix_error_analysis(self, threshold: float):
