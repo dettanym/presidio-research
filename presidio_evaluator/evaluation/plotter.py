@@ -73,13 +73,23 @@ class Plotter:
 
         entity_recall_dict = copy.deepcopy(self.results.entity_recall_dict)
         entity_precision_dict = copy.deepcopy(self.results.entity_precision_dict)
+        entity_fpr_dict = copy.deepcopy(self.results.entity_fpr_dict)
+        entity_n_dict = copy.deepcopy(self.results.n_dict)
 
         scores["model"] = self.model_name
-        scores["entity"] = list(entity_recall_dict.keys())
-        scores["recall"] = list(entity_recall_dict.values())
-        scores["precision"] = list(entity_precision_dict.values())
-        scores["fpr"] = [1 - precision for precision in entity_precision_dict.values()]
-        scores["count"] = list(self.results.n_dict.values())
+        scores["entity"] = []
+        scores["recall"] = []
+        scores["precision"] = []
+        scores["fpr"] = []
+        scores["count"] = []
+
+
+        for entity, recall in entity_recall_dict.items():
+            scores['entity'].append(entity)
+            scores['recall'].append(recall)
+            scores['precision'].append(entity_precision_dict[entity])
+            scores['fpr'].append(entity_fpr_dict[entity])
+            scores['count'].append(entity_n_dict[entity])
 
         scores[f"f{self.beta}_score"] = [
             Evaluator.f_beta(precision=precision, recall=recall, beta=self.beta)
@@ -92,7 +102,7 @@ class Plotter:
         scores["entity"].append("PII")
         scores["recall"].append(self.results.pii_recall)
         scores["precision"].append(self.results.pii_precision)
-        scores["fpr"].append(1 - self.results.pii_precision)
+        scores["fpr"].append(self.results.pii_fpr)
         scores["count"].append(self.results.n)
         scores[f_beta_score].append(self.results.pii_f)
 
