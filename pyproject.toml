@@ -22,7 +22,7 @@ requests = "^2.25"
 xmltodict = "^0.12.0"
 python-dotenv = "^1.0.0"
 plotly= "^5.24.0"
-kaleido = "^0.2.1.post1"
+kaleido = "0.2.1"
 # optional dependencies for the different NLP approaches
 [tool.poetry.group.ner]
 optional=true
