@@ -122,17 +122,18 @@ class PlotterForMultipleEvaluations:
                                 textcoords="offset points", color=color)
             colorcount += 1
 
-        ax.axline((0, 0), slope=1, linestyle="--", label="Random classifier", color="gray")
         ax.set_ylabel("True Positive Rate")
         ax.set_xlabel("False Positive Rate")
         if is_log:
             ax.set_xlim(0.00001, 0.02)
             ax.set_xscale("log")
             ax.set_yscale("log")
+        else:
+            ax.axline((0, 0), slope=1, linestyle="--", label="Random classifier", color="gray")
         title_keyword = "representative" if masked_or_random == "masked" else masked_or_random
         plt.suptitle("Receiver operating characteristic", fontsize=16)
         ax.set_title("Dataset with " + title_keyword + " keys")
-        fig.legend(title="PII types", loc="outside lower center", ncols=3)
+        fig.legend(title="PII types", loc="outside lower center", ncols=4)
         plt.savefig('plots/roc_' + masked_or_random + '.png')
 
     @staticmethod
@@ -163,8 +164,6 @@ class PlotterForMultipleEvaluations:
     def get_label_position(masked_or_random: str, pii_type:str, threshold:float) -> Tuple[int, int]:
         default_offsets = (-5, 5)
         labelxoffset, labelyoffset = default_offsets
-        if masked_or_random == "masked":
-            return default_offsets
         if pii_type == "US_DRIVER_LICENSE":
             if threshold == 0.4:
                 labelyoffset = -2 * labelyoffset
@@ -180,16 +179,11 @@ class PlotterForMultipleEvaluations:
             if threshold == 0.6:
                 labelyoffset = 0.5 *labelyoffset
         if pii_type == "DATE_TIME":
-            # if threshold == 0.6:
-            #     labelxoffset = 5 * labelxoffset
             if threshold == 0.9:
                 labelxoffset = 5 * labelxoffset
                 labelyoffset = -1 * labelyoffset
         if pii_type == "PHONE_NUMBER":
             if threshold == 0.4:
-                labelxoffset = 4 * labelxoffset
-            if threshold == 0.75:
-                labelyoffset = -2 * labelyoffset
                 labelxoffset = 4 * labelxoffset
         if pii_type == "PII":
             if threshold == 0.4:
@@ -236,8 +230,6 @@ class PlotterForMultipleEvaluations:
                 return False
             if pii_type == "IP_ADDRESS" and threshold == 0.9:
                 return False
-            # if pii_type == "URL" and threshold == 0.6:
-            #     return False
             if is_log:
                 if threshold == 0.3:
                     if pii_type == "PERSON" or pii_type == "DATE_TIME" or pii_type == "LOCATION" \
@@ -248,6 +240,10 @@ class PlotterForMultipleEvaluations:
                     if pii_type == "URL" or pii_type == "IP_ADDRESS":
                         return False
                 if threshold == 0.5:
-                    if pii_type == "IP_ADDRESS" or pii_type == "DATE_TIME" or pii_type == "US_DRIVER_LICENSE":
+                    if pii_type == "IP_ADDRESS" or pii_type == "DATE_TIME" \
+                        or pii_type == "US_DRIVER_LICENSE" or pii_type == "PHONE_NUMBER":
+                        return False
+                if threshold == 0.6:
+                    if pii_type == "PHONE_NUMBER":
                         return False
             return True
