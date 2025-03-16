@@ -86,6 +86,7 @@ class PlotterForMultipleEvaluations:
 
     @staticmethod
     def plot_roc(df:pd.DataFrame, dataset_name: str):
+        is_log = True
         fig, ax = plt.subplots(figsize=(8, 6), layout="constrained")
         df = df[df[
                     "count"] != 0]  # TODO: what does count mean? num of annotations (ground truth) or predictions (observed occurrences)
@@ -115,7 +116,7 @@ class PlotterForMultipleEvaluations:
                     marker = "."
             ax.plot(grp["fpr"], grp["recall"], data=grp, label=pii_type, marker=marker, color=color)
             for (fpr, recall, threshold) in zip(grp["fpr"], grp["recall"], grp["threshold"]):
-                if PlotterForMultipleEvaluations.should_annotate(pii_type, threshold):
+                if PlotterForMultipleEvaluations.should_annotate(pii_type, threshold, is_log):
                     offset_for_this_point = PlotterForMultipleEvaluations.get_label_position(masked_or_random, pii_type, threshold)
                     ax.annotate("  %s" % threshold, xy=(fpr, recall), xytext=offset_for_this_point,
                                 textcoords="offset points", color=color)
@@ -124,11 +125,10 @@ class PlotterForMultipleEvaluations:
         ax.axline((0, 0), slope=1, linestyle="--", label="Random classifier", color="gray")
         ax.set_ylabel("True Positive Rate")
         ax.set_xlabel("False Positive Rate")
-        # ax.set_ylim(-0.05, 1.05)
-        ax.set_xlim(0.00001, 0.02)
-        ax.set_xscale("log")
-        ax.set_xscale("log")
-        ax.set_yscale("log")
+        if is_log:
+            ax.set_xlim(0.00001, 0.02)
+            ax.set_xscale("log")
+            ax.set_yscale("log")
         title_keyword = "representative" if masked_or_random == "masked" else masked_or_random
         plt.suptitle("Receiver operating characteristic", fontsize=16)
         ax.set_title("Dataset with " + title_keyword + " keys")
@@ -166,11 +166,13 @@ class PlotterForMultipleEvaluations:
         if masked_or_random == "masked":
             return default_offsets
         if pii_type == "US_DRIVER_LICENSE":
-            if threshold == 0.4 or threshold == 0.6:
+            if threshold == 0.4:
                 labelyoffset = -2 * labelyoffset
             if threshold == 0.3:
                 labelxoffset = 2 * labelxoffset # Shift it more to the left so it doesn't hit the x boundary
                 labelyoffset = 0.5 * labelyoffset
+            if threshold == 0.6:
+                labelxoffset = 3 * labelxoffset
         if pii_type == "URL":
             if threshold == 0.5:
                 labelyoffset = 0.5 * labelyoffset
@@ -178,10 +180,8 @@ class PlotterForMultipleEvaluations:
             if threshold == 0.6:
                 labelyoffset = 0.5 *labelyoffset
         if pii_type == "DATE_TIME":
-            if threshold == 0.4:
-                labelyoffset = -2 * labelyoffset
-            if threshold == 0.6:
-                labelxoffset = 5 * labelxoffset
+            # if threshold == 0.6:
+            #     labelxoffset = 5 * labelxoffset
             if threshold == 0.9:
                 labelxoffset = 5 * labelxoffset
                 labelyoffset = -1 * labelyoffset
@@ -193,12 +193,12 @@ class PlotterForMultipleEvaluations:
                 labelxoffset = 4 * labelxoffset
         if pii_type == "PII":
             if threshold == 0.4:
-                labelyoffset = -2 * labelyoffset
+                labelxoffset = 4 * labelxoffset
             if threshold == 0.9:
                 labelxoffset = 5 * labelxoffset
                 labelyoffset = -2 * labelyoffset
             if threshold == 0.5:
-                labelxoffset = 5 * labelxoffset
+                labelxoffset = 4 * labelxoffset
             if threshold == 0.6:
                 labelxoffset = 4 * labelxoffset
         return labelxoffset, labelyoffset
@@ -228,7 +228,7 @@ class PlotterForMultipleEvaluations:
         return mapping[pii_type]
 
     @staticmethod
-    def should_annotate(pii_type: str, threshold: float) -> bool:
+    def should_annotate(pii_type: str, threshold: float, is_log: True) -> bool:
         if pii_type == "PII" and (threshold == 0.45 or threshold == 0.75 or threshold == 0.85):
             return False
         else:
@@ -236,6 +236,18 @@ class PlotterForMultipleEvaluations:
                 return False
             if pii_type == "IP_ADDRESS" and threshold == 0.9:
                 return False
-            if pii_type == "URL" and threshold == 0.6:
-                return False
+            # if pii_type == "URL" and threshold == 0.6:
+            #     return False
+            if is_log:
+                if threshold == 0.3:
+                    if pii_type == "PERSON" or pii_type == "DATE_TIME" or pii_type == "LOCATION" \
+                        or pii_type =="NRP" or pii_type == "PHONE_NUMBER" or pii_type == "URL" \
+                            or pii_type == "IP_ADDRESS":
+                        return False
+                if threshold == 0.4:
+                    if pii_type == "URL" or pii_type == "IP_ADDRESS":
+                        return False
+                if threshold == 0.5:
+                    if pii_type == "IP_ADDRESS" or pii_type == "DATE_TIME" or pii_type == "US_DRIVER_LICENSE":
+                        return False
             return True
