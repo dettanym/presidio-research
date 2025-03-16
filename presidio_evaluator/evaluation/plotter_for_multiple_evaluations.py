@@ -127,6 +127,8 @@ class PlotterForMultipleEvaluations:
         # ax.set_ylim(-0.05, 1.05)
         ax.set_xlim(0.00001, 0.02)
         ax.set_xscale("log")
+        ax.set_xscale("log")
+        ax.set_yscale("log")
         title_keyword = "representative" if masked_or_random == "masked" else masked_or_random
         plt.suptitle("Receiver operating characteristic", fontsize=16)
         ax.set_title("Dataset with " + title_keyword + " keys")
@@ -161,7 +163,7 @@ class PlotterForMultipleEvaluations:
     def get_label_position(masked_or_random: str, pii_type:str, threshold:float) -> Tuple[int, int]:
         default_offsets = (-5, 5)
         labelxoffset, labelyoffset = default_offsets
-        if masked_or_random == "random" or masked_or_random == "masked":
+        if masked_or_random == "masked":
             return default_offsets
         if pii_type == "US_DRIVER_LICENSE":
             if threshold == 0.4 or threshold == 0.6:
