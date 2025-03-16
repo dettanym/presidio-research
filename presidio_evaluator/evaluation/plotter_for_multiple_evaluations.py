@@ -38,6 +38,7 @@ class PlotterForMultipleEvaluations:
             scores["threshold"] = threshold
             df = pd.DataFrame(scores)
             result_dicts.append(df)
+        self.write_dfs_to_file(df=self.dataframes, dataset_name=self.dataset_name)
 
         df = pd.concat(result_dicts)
         self.dataframes = df
@@ -75,17 +76,24 @@ class PlotterForMultipleEvaluations:
         # fns_df = ModelError.get_fns_dataframe(results.model_errors, entity="PHONE_NUMBER")
         # fns_df[["full_text", "token", "annotation", "prediction"]].head(20)
 
+    def write_dfs_to_file(self, df: pd.DataFrame, dataset_name: str):
+        masked_or_random = dataset_name.split(".")[0].split("_")[3]
+        dataframe_log_filename = "statistics_per_entity_" + masked_or_random + "_dataset.csv"
+        df = df.sort_values(by=["entity", "threshold"], ascending=[True, True])
+        df.to_csv(dataframe_log_filename, index=False)
+
+    def read_dfs_from_file(self, masked_or_random: str) -> pd.DataFrame:
+        dataframe_log_filename = "statistics_per_entity_" + masked_or_random + "_dataset.csv"
+        df = pd.DataFrame.from_csv(dataframe_log_filename)
+        return df
+
     @staticmethod
     def plot_roc(df:pd.DataFrame, dataset_name: str):
         fig, ax = plt.subplots(figsize=(8, 6), layout="constrained")
         df = df[df[
                     "count"] != 0]  # TODO: what does count mean? num of annotations (ground truth) or predictions (observed occurrences)
         # df = df[df["entity"] == "PII"]
-
         masked_or_random = dataset_name.split(".")[0].split("_")[3]
-        dataframe_log_filename = "statistics_per_entity_" + masked_or_random + "_dataset.csv"
-        df = df.sort_values(by=["entity", "threshold"], ascending=[True, True])
-        df.to_csv(dataframe_log_filename, index=False)
 
         colors = plt.get_cmap('tab20').colors
         colorcount = 0
@@ -120,8 +128,8 @@ class PlotterForMultipleEvaluations:
         ax.set_ylabel("True Positive Rate")
         ax.set_xlabel("False Positive Rate")
         # ax.set_ylim(-0.05, 1.05)
-        # ax.set_xlim(0.00001, 0.02)
-        # ax.set_xscale("log")
+        ax.set_xlim(0.00001, 0.02)
+        ax.set_xscale("log")
         title_keyword = "representative" if masked_or_random == "masked" else masked_or_random
         plt.suptitle("Receiver operating characteristic", fontsize=16)
         ax.set_title("Dataset with " + title_keyword + " keys")
