@@ -16,9 +16,11 @@ class EvaluationResult:
         pii_recall: Optional[float] = None,
         pii_precision: Optional[float] = None,
         pii_f: Optional[float] = None,
+        pii_fpr: Optional[float] = None,
         n: Optional[int] = None,
         entity_recall_dict: Optional[Dict[str, float]] = None,
         entity_precision_dict: Optional[Dict[str, float]] = None,
+        entity_fpr_dict: Optional[Dict[str, float]] = None,
         n_dict: Optional[Dict[str, int]] = None,
         tokens: Optional[List[str]] = None,
         actual_tags: Optional[List[str]] = None,
@@ -33,9 +35,11 @@ class EvaluationResult:
         :param pii_recall: Recall for all entities (PII or not)
         :param pii_precision: Precision for all entities (PII or not)
         :param pii_f: F measure for all entities (PII or not)
+        :param pii_fpr: False positive rate for all entities (PII or not)
         :param n: Number of total entity tokens
         :param entity_recall_dict: Recall per entity
         :param entity_precision_dict: Precision per entity
+        :param entity_fpr_dict: False positive rate per entity
         :param n_dict: Number of tokens per entity
         :param tokens: List of tokens
         :param actual_tags: List of actual tags
@@ -49,11 +53,13 @@ class EvaluationResult:
         self.pii_recall = pii_recall
         self.pii_precision = pii_precision
         self.pii_f = pii_f
+        self.pii_fpr = pii_fpr
         self.n = n
         self.entity_recall_dict = entity_recall_dict if entity_recall_dict else {}
         self.entity_precision_dict = (
             entity_precision_dict if entity_precision_dict else {}
         )
+        self.entity_fpr_dict = entity_fpr_dict if entity_fpr_dict else {}
         self.n_dict = n_dict if n_dict else {}
         self.tokens = tokens
         self.actual_tags = actual_tags
@@ -100,6 +106,7 @@ class EvaluationResult:
             "pii_f": self.pii_f,
             "pii_recall": self.pii_recall,
             "pii_precision": self.pii_precision,
+            "pii_fpr": self.pii_fpr,
             "n": self.n,
         }
         if self.entity_precision_dict:
@@ -112,6 +119,13 @@ class EvaluationResult:
         if self.entity_recall_dict:
             metrics_dict.update(
                 {f"{ent}_recall": v for (ent, v) in self.entity_recall_dict.items()}
+            )
+        if self.entity_fpr_dict:
+            metrics_dict.update(
+                {
+                    f"{ent}_fpr": v
+                    for (ent, v) in self.entity_fpr_dict.items()
+                }
             )
         if self.n:
             metrics_dict.update(self.n_dict)
