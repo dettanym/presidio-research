@@ -38,13 +38,10 @@ class PlotterForMultipleEvaluations:
             scores["threshold"] = threshold
             df = pd.DataFrame(scores)
             result_dicts.append(df)
-        self.write_dfs_to_file(df=self.dataframes, dataset_name=self.dataset_name)
 
         df = pd.concat(result_dicts)
         self.dataframes = df
-        with pd.option_context('display.max_rows', None, 'display.max_columns',
-                               None):  # more options can be specified also
-            pass  # print(df)
+        self.write_dfs_to_file(df=self.dataframes, dataset_name=self.dataset_name)
 
         self.plot_roc(df, self.dataset_name)
 
