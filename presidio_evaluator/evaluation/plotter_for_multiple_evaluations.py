@@ -79,11 +79,6 @@ class PlotterForMultipleEvaluations:
         df = df.sort_values(by=["entity", "threshold"], ascending=[True, True])
         df.to_csv(dataframe_log_filename, index=False)
 
-    def read_dfs_from_file(self, masked_or_random: str) -> pd.DataFrame:
-        dataframe_log_filename = "statistics_per_entity_" + masked_or_random + "_dataset.csv"
-        df = pd.DataFrame.from_csv(dataframe_log_filename)
-        return df
-
     @staticmethod
     def plot_roc(df:pd.DataFrame, dataset_name: str):
         is_log = True
@@ -248,3 +243,46 @@ class PlotterForMultipleEvaluations:
             if pii_type == "PHONE_NUMBER":
                 return False
         return True
+
+
+def read_dfs_from_file(masked_or_random: str) -> pd.DataFrame:
+    dataframe_log_filename = "statistics_per_entity_" + masked_or_random + "_dataset.csv"
+    df = pd.read_csv(dataframe_log_filename)
+    return df
+
+
+def print_comparison_between_two_datasets(random_data: pd.DataFrame, masked_data: pd.DataFrame):
+    """
+    this approach assumes that the disjoint union of these two dataframes
+    (with respect to entity type and threshold) will return an empty set.
+    """
+
+    random_data = random_data.sort_values(by=["entity", "threshold"], ascending=[True, True]).copy()
+    masked_data = masked_data.sort_values(by=["entity", "threshold"], ascending=[True, True]).copy()
+
+    merged = pd.merge(
+        random_data,
+        masked_data,
+        suffixes=('_random', '_masked'),
+        how='inner',
+        on=["entity", "threshold"],
+    )
+    for index, row in merged.iterrows():
+        if row['recall_random'] <= row['recall_masked'] and row['fpr_random'] >= row['fpr_masked']:
+            continue
+        else:
+            print(
+                f"BAD SCENARIO for \"{row['entity']}\"@{row['threshold']}:\n" +
+                "\n".join(
+                    filter(
+                        lambda line: line is not None,
+                        [
+                            None if row['recall_random'] <= row['recall_masked']
+                            else f"    random recall is higher than masked, difference is {row['recall_random'] - row['recall_masked']}",
+                            None if row['fpr_random'] >= row['fpr_masked']
+                            else f"    random fpr is lower than masked, difference is {row['fpr_masked'] - row['fpr_random']}",
+                        ]
+                    )
+                )
+            )
+
