@@ -129,6 +129,7 @@ class PlotterForMultipleEvaluations:
             ax.set_xscale("log")
             ax.set_yscale("log")
         else:
+            ax.set_xlim(0, 0.02)
             ax.axline((0, 0), slope=1, linestyle="--", label="Random classifier", color="gray")
         title_keyword = "representative" if masked_or_random == "masked" else masked_or_random
         plt.suptitle("Receiver operating characteristic", fontsize=16)
@@ -223,27 +224,27 @@ class PlotterForMultipleEvaluations:
 
     @staticmethod
     def should_annotate(pii_type: str, threshold: float, is_log: True) -> bool:
-        if pii_type == "PII" and (threshold == 0.45 or threshold == 0.75 or threshold == 0.85):
+        if pii_type == "EMAIL_ADDRESS" or pii_type == "IBAN_CODE" or pii_type == "US_SSN":
             return False
-        else:
-            if pii_type == "EMAIL_ADDRESS" or pii_type == "IBAN_CODE" or pii_type == "US_SSN":
+        if threshold == 0.45 or threshold == 0.75 or threshold == 0.85:
+            if pii_type == "PII":
                 return False
-            if pii_type == "IP_ADDRESS" and threshold == 0.9:
+        if threshold == 0.9:
+            if pii_type == "IP_ADDRESS":
                 return False
-            if is_log:
-                if threshold == 0.3:
-                    if pii_type == "PERSON" or pii_type == "DATE_TIME" or pii_type == "LOCATION" \
-                        or pii_type =="NRP" or pii_type == "PHONE_NUMBER" or pii_type == "URL" \
-                            or pii_type == "IP_ADDRESS":
-                        return False
-                if threshold == 0.4:
-                    if pii_type == "URL" or pii_type == "IP_ADDRESS":
-                        return False
-                if threshold == 0.5:
-                    if pii_type == "IP_ADDRESS" or pii_type == "DATE_TIME" \
-                        or pii_type == "US_DRIVER_LICENSE" or pii_type == "PHONE_NUMBER":
-                        return False
-                if threshold == 0.6:
-                    if pii_type == "PHONE_NUMBER":
-                        return False
-            return True
+        if threshold == 0.3:
+            if pii_type == "PERSON" or pii_type == "DATE_TIME" or pii_type == "LOCATION" \
+                or pii_type =="NRP" or pii_type == "PHONE_NUMBER" or pii_type == "URL" \
+                    or pii_type == "IP_ADDRESS":
+                return False
+        if threshold == 0.4:
+            if pii_type == "URL" or pii_type == "IP_ADDRESS":
+                return False
+        if threshold == 0.5:
+            if pii_type == "IP_ADDRESS" or pii_type == "DATE_TIME" \
+                or pii_type == "US_DRIVER_LICENSE" or pii_type == "PHONE_NUMBER":
+                return False
+        if threshold == 0.6:
+            if pii_type == "PHONE_NUMBER":
+                return False
+        return True
