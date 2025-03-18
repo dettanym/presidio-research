@@ -286,8 +286,7 @@ class Plotter:
 
     @staticmethod
     def plot_confusion_matrix(entities: List[str],
-                              confmatrix: List[List[int]], suffix: str=""
-                            ) -> None:
+                              confmatrix: List[List[int]], suffix: str) -> None:
         # Create a DataFrame from the 2D list
         confusion_matrix_df = pd.DataFrame(confmatrix, index=entities, columns=entities)
 
@@ -303,7 +302,7 @@ class Plotter:
             x=confusion_matrix_df.columns,
             y=confusion_matrix_df.index,
             color_continuous_scale="Blues",
-            title=f"Confusion Matrix for Presidio Analyzer",
+            title=f"Confusion Matrix for Presidio Analyzer for {suffix} dataset",
             text_auto=True,
         )
         fig.update_xaxes(tickangle=90, side="top", title_standoff=10)
