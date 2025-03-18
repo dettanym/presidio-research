@@ -43,11 +43,12 @@ class PlotterForMultipleEvaluations:
         self.dataframes = df
         self.write_dfs_to_file(df=self.dataframes, dataset_name=self.dataset_name)
 
-        self.plot_roc(df, self.dataset_name)
+        self.plot_roc(df, self.dataset_name, True)
+        self.plot_roc(df, self.dataset_name, False)
 
-        # for threshold in self.plotter_per_threshold.keys():
-        #     if threshold == 0.4 or threshold == 0.85:
-        #         self.conf_matrix_error_analysis(threshold)
+        for threshold in self.plotter_per_threshold.keys():
+            if threshold == 0.45:
+                self.conf_matrix_error_analysis(threshold)
 
 
     def conf_matrix_error_analysis(self, threshold: float):
@@ -61,7 +62,8 @@ class PlotterForMultipleEvaluations:
         # Log experiment, confusion matrix
         entities_mapping = PresidioAnalyzerWrapper.presidio_entities_map
         self.log_experiment(results, self.dataset_name, entities_mapping, entities, confmatrix)
-        Plotter.plot_confusion_matrix(entities=entities, confmatrix=confmatrix)
+        masked_or_random = self.dataset_name.split(".")[0].split("_")[3]
+        Plotter.plot_confusion_matrix(entities=entities, confmatrix=confmatrix, suffix=masked_or_random)
 
         # Error analysis
         plotter.plot_most_common_tokens()
@@ -80,8 +82,7 @@ class PlotterForMultipleEvaluations:
         df.to_csv(dataframe_log_filename, index=False)
 
     @staticmethod
-    def plot_roc(df:pd.DataFrame, dataset_name: str):
-        is_log = True
+    def plot_roc(df:pd.DataFrame, dataset_name: str, is_log: bool):
         fig, ax = plt.subplots(figsize=(8, 6), layout="constrained")
         df = df[df[
                     "count"] != 0]  # TODO: what does count mean? num of annotations (ground truth) or predictions (observed occurrences)
@@ -123,14 +124,16 @@ class PlotterForMultipleEvaluations:
             ax.set_xlim(0.00001, 0.02)
             ax.set_xscale("log")
             ax.set_yscale("log")
+            is_log_str = "_log_axes"
         else:
-            ax.set_xlim(0, 0.02)
+            ax.set_xlim(-0.00005, 0.002)
             ax.axline((0, 0), slope=1, linestyle="--", label="Random classifier", color="gray")
+            is_log_str = "_normal_axes"
         title_keyword = "representative" if masked_or_random == "masked" else masked_or_random
         plt.suptitle("Receiver operating characteristic", fontsize=16)
         ax.set_title("Dataset with " + title_keyword + " keys")
         fig.legend(title="PII types", loc="outside lower center", ncols=4)
-        plt.savefig('plots/roc_' + masked_or_random + '.png')
+        plt.savefig('plots/roc_' + masked_or_random + is_log_str + '.png')
 
     @staticmethod
     def log_experiment(results: EvaluationResult, dataset_name: str, entities_mapping: str,
@@ -267,12 +270,24 @@ def print_comparison_between_two_datasets(random_data: pd.DataFrame, masked_data
         how='inner',
         on=["entity", "threshold"],
     )
-    for index, row in merged.iterrows():
-        if row['recall_random'] <= row['recall_masked'] and row['fpr_random'] >= row['fpr_masked']:
+    for index, row in merged.sort_values(by=["entity", "threshold"], ascending=[True, True]).iterrows():
+        if row['recall_random'] < row['recall_masked']:
+            print(
+                f"GOOD SCENARIO: random recall is LT masked recall for \"{row['entity']}\"@{row['threshold']}")
+        if row['recall_random'] == row['recall_masked']:
+            print(
+                f"GOOD SCENARIO: random recall is EQ masked recall for \"{row['entity']}\"@{row['threshold']}")
+        if row['fpr_random'] > row['fpr_masked']:
+            print(
+                f"GOOD SCENARIO: random FPR is GT masked FPR for \"{row['entity']}\"@{row['threshold']}")
+            continue
+        if row['fpr_random'] == row['fpr_masked']:
+            print(
+                f"GOOD SCENARIO: random FPR is EQ masked FPR for \"{row['entity']}\"@{row['threshold']}")
             continue
         else:
             print(
-                f"BAD SCENARIO for \"{row['entity']}\"@{row['threshold']}:\n" +
+                f"BAD SCENARIO for \"{row['entity']}\"@{row['threshold']}" +
                 "\n".join(
                     filter(
                         lambda line: line is not None,
@@ -285,4 +300,6 @@ def print_comparison_between_two_datasets(random_data: pd.DataFrame, masked_data
                     )
                 )
             )
+
+
 
