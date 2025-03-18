@@ -112,8 +112,8 @@ class PlotterForMultipleEvaluations:
                     marker = "."
             ax.plot(grp["fpr"], grp["recall"], data=grp, label=pii_type, marker=marker, color=color)
             for (fpr, recall, threshold) in zip(grp["fpr"], grp["recall"], grp["threshold"]):
-                if PlotterForMultipleEvaluations.should_annotate(pii_type, threshold, is_log):
-                    offset_for_this_point = PlotterForMultipleEvaluations.get_label_position(masked_or_random, pii_type, threshold)
+                if PlotterForMultipleEvaluations.should_annotate(pii_type, threshold, is_log, fpr):
+                    offset_for_this_point = PlotterForMultipleEvaluations.get_label_position(masked_or_random, pii_type, threshold, is_log)
                     ax.annotate("  %s" % threshold, xy=(fpr, recall), xytext=offset_for_this_point,
                                 textcoords="offset points", color=color)
             colorcount += 1
@@ -126,7 +126,7 @@ class PlotterForMultipleEvaluations:
             ax.set_yscale("log")
             is_log_str = "_log_axes"
         else:
-            ax.set_xlim(-0.00005, 0.002)
+            ax.set_xlim(-0.00015, 0.002)
             ax.axline((0, 0), slope=1, linestyle="--", label="Random classifier", color="gray")
             is_log_str = "_normal_axes"
         title_keyword = "representative" if masked_or_random == "masked" else masked_or_random
@@ -160,7 +160,82 @@ class PlotterForMultipleEvaluations:
         experiment.end()
 
     @staticmethod
-    def get_label_position(masked_or_random: str, pii_type:str, threshold:float) -> Tuple[int, int]:
+    def get_label_position(masked_or_random: str, pii_type:str, threshold:float, is_log: bool) -> Tuple[int, int]:
+        if not is_log:
+            length_of_single_digit = 18
+            label_height = 10
+            default_double_digit_xoffset = -36
+            default_single_digit_xoffset = -30
+            default_top_height_yoffset = 3
+
+            if pii_type == "AGE":
+                return {
+                    0.9: (default_single_digit_xoffset, -10)
+                }.get(threshold)
+            if pii_type == "CREDIT_CARD":
+                return {
+                    0.9: (default_single_digit_xoffset, -5),
+                }.get(threshold)
+            if pii_type == "DATE_TIME":
+                return {
+                    0.9: (default_single_digit_xoffset, -2)
+                }.get(threshold)
+            if pii_type == "EMAIL_ADDRESS":
+                return {
+                    0.9: (default_single_digit_xoffset, default_top_height_yoffset - 1 * label_height)
+                }.get(threshold)
+            if pii_type == "IBAN_CODE":
+                return {
+                    0.9: (default_single_digit_xoffset, default_top_height_yoffset - 2 * label_height)
+                }.get(threshold)
+            if pii_type == "IP_ADDRESS":
+                return {
+                    0.3: (default_single_digit_xoffset, default_top_height_yoffset - 3 * label_height),
+                    0.9: (default_single_digit_xoffset, -5)
+                        if masked_or_random == "random"
+                        else (default_single_digit_xoffset, default_top_height_yoffset - 3 * label_height),
+                }.get(threshold)
+            if pii_type == "LOCATION":
+                return {
+                    0.9: (default_single_digit_xoffset + length_of_single_digit, -10),
+                }.get(threshold)
+            if pii_type == "NRP":
+                return {
+                    0.9: (default_single_digit_xoffset + 2 * length_of_single_digit, -10)
+                }.get(threshold)
+            if pii_type == "PERSON":
+                return {
+                    0.9: (default_single_digit_xoffset + 4 * length_of_single_digit, -10)
+                }.get(threshold)
+            if pii_type == "PHONE_NUMBER":
+                return {
+                    0.75: (default_double_digit_xoffset, -5),
+                    0.9: (default_single_digit_xoffset + 6 * length_of_single_digit, -10)
+                }.get(threshold)
+            if pii_type == "PII":
+                return {
+                    0.75: (default_double_digit_xoffset, -1),
+                    0.9: (default_single_digit_xoffset, -5)
+                }.get(threshold)
+            if pii_type == "URL":
+                return {
+                    0.6: (default_single_digit_xoffset, default_top_height_yoffset),
+                    0.9: (default_single_digit_xoffset, -9)
+                        if masked_or_random == "random"
+                        else (default_single_digit_xoffset + 1.75 * length_of_single_digit, -5)
+                }.get(threshold)
+            if pii_type == "US_DRIVER_LICENSE":
+                return {
+                    0.9: (default_single_digit_xoffset + 3 * length_of_single_digit, -10)
+                }.get(threshold)
+            if pii_type == "US_SSN":
+                return {
+                    0.85: (-12, default_top_height_yoffset),
+                    0.9: (default_single_digit_xoffset + 5 * length_of_single_digit, -10),
+                }.get(threshold)
+
+            raise ValueError('unhandled PII type')
+
         default_offsets = (-5, 5)
         labelxoffset, labelyoffset = default_offsets
         if pii_type == "US_DRIVER_LICENSE":
@@ -221,7 +296,16 @@ class PlotterForMultipleEvaluations:
         return mapping[pii_type]
 
     @staticmethod
-    def should_annotate(pii_type: str, threshold: float, is_log: True) -> bool:
+    def should_annotate(pii_type: str, threshold: float, is_log: bool, fpr: float) -> bool:
+        if not is_log:
+            if fpr != 0:
+                return False
+
+            if pii_type == "PII" and threshold == 0.85:
+                return False
+
+            return True
+
         if pii_type == "EMAIL_ADDRESS" or pii_type == "IBAN_CODE" or pii_type == "US_SSN":
             return False
         if threshold == 0.45 or threshold == 0.75 or threshold == 0.85:
